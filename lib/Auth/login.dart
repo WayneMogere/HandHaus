@@ -27,7 +27,7 @@ class _LoginState extends State<Login> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
-  final baseUrl = Uri.parse("http://192.168.56.1:8000/api");
+  final baseUrl = Uri.parse("http://192.168.0.104:8000/api");
 
   final _formKey = GlobalKey<FormState>();
   final RegExp emailRegex = RegExp(
@@ -67,7 +67,7 @@ class _LoginState extends State<Login> {
 
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color.fromRGBO(248, 243, 236, 1),
+      backgroundColor: Color.fromRGBO(245, 240, 233, 1),
       body: Padding(
         padding: const EdgeInsets.all(25.0),
         child: Column(

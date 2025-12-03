@@ -12,7 +12,7 @@ class _SplashState extends State<Splash> {
   @override
   void initState(){
     super.initState();
-    Future.delayed(Duration(seconds: 5),(){
+    Future.delayed(Duration(seconds: 3),(){
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => Login()),
@@ -22,10 +22,12 @@ class _SplashState extends State<Splash> {
 
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color.fromRGBO(248, 243, 236, 1),
-      body: Image.asset('images/handhaus_logo.png',
-      width: double.infinity,
-      height: double.infinity,
+      backgroundColor: Color.fromRGBO(245, 240, 233, 1),
+      body: Center(
+        child: CircleAvatar(
+                radius: 90,
+                backgroundImage: AssetImage('images/handhaus_logo.png'),
+              ),
       ),
     );
   }
