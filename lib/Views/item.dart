@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:hand_haus_mobile/Auth/login.dart';
 import 'package:hand_haus_mobile/Views/category.dart';
 import 'package:hand_haus_mobile/Views/home_page.dart';
+import 'package:hand_haus_mobile/Views/order.dart';
 import 'package:hand_haus_mobile/Views/profile.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
@@ -22,6 +23,10 @@ class _ItemState extends State<Item> {
   Future<String?> getUserName() async{
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('name');
+  }
+  Future<int?> getUserId() async{
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('id');
   }
   Future<String?> getToken() async{
     final prefs = await SharedPreferences.getInstance();
@@ -49,6 +54,32 @@ class _ItemState extends State<Item> {
     }
 
     return responseData;
+  }
+
+  Future<void> addOrder(int item_id) async{
+    final orderUrl = Uri.parse("$baseUrl/saveOrder");
+    int? user_id = await getUserId();
+    final token = await getToken();
+    final response = await http.post(
+      orderUrl, 
+      headers:{
+      "Content-Type" : "application/json",
+      "Authorization": "Bearer $token"
+      }, 
+      body: jsonEncode({
+        'user_id' : user_id,
+        'item_id': item_id,
+        'quantity': '1',
+        'status': 'not paid',
+      })
+    );
+    
+    if(response.statusCode == 200){
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Item added to cart")));
+    }else{
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to add item to cart")));
+    }
+
   }
 
   void initState(){
@@ -109,7 +140,7 @@ class _ItemState extends State<Item> {
               onPressed: (){
                 Navigator.push(
                   context, 
-                  MaterialPageRoute(builder: (context) => Item())
+                  MaterialPageRoute(builder: (context) => Order())
                 );
               },
               icon: Icon(Icons.shopping_bag_outlined, color: Colors.brown)
@@ -131,9 +162,7 @@ class _ItemState extends State<Item> {
         ]
       ),
       appBar: AppBar(
-        backgroundColor: Color.fromRGBO(248, 243, 236, 1), 
-        // title: Text("Welcome $name"),
-        // elevation: 5,
+        backgroundColor: Color.fromRGBO(248, 243, 236, 1),
       ),
       drawer: Drawer(
         backgroundColor: Color.fromRGBO(248, 243, 236, 1),
@@ -205,8 +234,10 @@ class _ItemState extends State<Item> {
                     title: Text(item['name']),
                     subtitle: Text(item['description']),
                     trailing: ElevatedButton(
-                      onPressed: (){}, 
-                      child: Icon(Icons.delete, color: Colors.red,)
+                      onPressed: (){
+                        addOrder(item['id']);
+                      }, 
+                      child: Text("Add to Cart")
                     ),
                   );
                 },

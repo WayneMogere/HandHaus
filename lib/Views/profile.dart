@@ -4,8 +4,11 @@ import 'package:hand_haus_mobile/Auth/login.dart';
 import 'package:hand_haus_mobile/Views/category.dart';
 import 'package:hand_haus_mobile/Views/home_page.dart';
 import 'package:hand_haus_mobile/Views/item.dart';
+import 'package:hand_haus_mobile/Views/order.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -19,6 +22,7 @@ class _ProfileState extends State<Profile> {
   final baseUrl = Uri.parse("http://192.168.0.104:8000/api");
 
   Future<Map>? userData;
+  File? _image;
 
   Future<String?> getToken() async{
     final prefs = await SharedPreferences.getInstance();
@@ -58,23 +62,56 @@ class _ProfileState extends State<Profile> {
         "Accept": "application/json",
         "Authorization": "Bearer ${await getToken()}"
       },
-     );
-     Map data = jsonDecode(response.body);
-     if(data['statusCode'] == 200){
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove("name");
-        await prefs.remove("token");
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Logged out Succefully")
-          )
-        );
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context)=> Login())
-        );
-      }
-    
+    );
+    Map data = jsonDecode(response.body);
+    if(data['statusCode'] == 200){
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove("name");
+      await prefs.remove("token");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Logged out Succefully")
+        )
+      );
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context)=> Login())
+      );
+    }
+  }
+
+  Future pickImage() async {
+    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
+
+    if (pickedFile == null) return;
+
+    setState(() {
+      _image = File(pickedFile.path);
+    });
+  }
+
+  Future uploadImage() async {
+    if (_image == null) return;
+
+    var request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/image'),
+    );
+
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'image',
+        _image!.path,
+      ),
+    );
+
+    var response = await request.send();
+
+    if (response.statusCode == 200) {
+      print("Upload successful");
+    } else {
+      print("Upload failed");
+    }
   }
 
   @override
@@ -83,7 +120,6 @@ class _ProfileState extends State<Profile> {
       backgroundColor: Color.fromRGBO(248, 243, 236, 1),
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: Color.fromRGBO(248, 243, 236, 1),
-        // backgroundColor: Color.fromRGBO(173, 159, 141, 1),
         items: [
           BottomNavigationBarItem(
             icon: IconButton(
@@ -102,7 +138,7 @@ class _ProfileState extends State<Profile> {
               onPressed: (){
                 Navigator.push(
                   context, 
-                  MaterialPageRoute(builder: (context) => Item())
+                  MaterialPageRoute(builder: (context) => Order())
                 );
               },
               icon: Icon(Icons.shopping_bag_outlined, color: Color.fromRGBO(173, 159, 141, 1))
@@ -192,8 +228,15 @@ class _ProfileState extends State<Profile> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        _image != null
+                        ? Image.file(_image!, height: 200)
+                        : Text(" "),
+                        IconButton(
+                          onPressed: uploadImage,
+                          icon: Icon(Icons.account_circle_outlined, color: Color.fromRGBO(173, 159, 141, 1), size: 45,)
+                        ),
                         TextField(
-                          decoration: InputDecoration(labelText: 'Name'),
+                          decoration: InputDecoration(labelText: 'Name', ),
                           controller: TextEditingController(text: user['name']),
                         ),
                         TextField(

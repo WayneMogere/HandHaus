@@ -19,6 +19,10 @@ class _LoginState extends State<Login> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('name', name);
   }
+  Future<void> storeUserId(int id) async{
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('id', id);
+  }
   Future<void> storeToken(String token) async{
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('token', token);
@@ -53,6 +57,7 @@ class _LoginState extends State<Login> {
     if(response.statusCode == 200){
       storeToken(data['token']);
       storeUserName(data['user'] ['name']);
+      storeUserId(data['user'] ['id']);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Login Successful")));
       Navigator.pushReplacement(
         context,

@@ -2,8 +2,12 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:hand_haus_mobile/Auth/login.dart';
 import 'package:hand_haus_mobile/Views/category.dart';
+import 'package:hand_haus_mobile/Views/clothes.dart';
 import 'package:hand_haus_mobile/Views/item.dart';
+import 'package:hand_haus_mobile/Views/jewelery.dart';
+import 'package:hand_haus_mobile/Views/order.dart';
 import 'package:hand_haus_mobile/Views/profile.dart';
+import 'package:hand_haus_mobile/Views/woodcrafts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
@@ -26,6 +30,10 @@ class _HomePageState extends State<HomePage> {
   Future<String?> getUserName() async{
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('name');
+  }
+  Future<int?> getUserId() async{
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('id');
   }
 
   String name = '';
@@ -130,14 +138,31 @@ class _HomePageState extends State<HomePage> {
     return responseData;
   }
 
-  // Future<List<dynamic>> combinedFutures() async {
-  //     return await Future.wait([
-  //       getWoodcrafts(),
-  //       getJewelery(),
-  //       getClothes(),
-  //     ]);
-  //   }
-  
+  Future<void> addOrder(int item_id) async{
+    final orderUrl = Uri.parse("$baseUrl/saveOrder");
+    int? user_id = await getUserId();
+    final token = await getToken();
+    final response = await http.post(
+      orderUrl, 
+      headers:{
+      "Content-Type" : "application/json",
+      "Authorization": "Bearer $token"
+      }, 
+      body: jsonEncode({
+        'user_id' : user_id,
+        'item_id': item_id,
+        'quantity': '1',
+        'status': 'not paid',
+      })
+    );
+    
+    if(response.statusCode == 200){
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Item added to cart")));
+    }else{
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to add item to cart")));
+    }
+
+  }
 
   void initState(){
     super.initState();
@@ -201,7 +226,7 @@ class _HomePageState extends State<HomePage> {
               onPressed: (){
                 Navigator.push(
                   context, 
-                  MaterialPageRoute(builder: (context) => Item())
+                  MaterialPageRoute(builder: (context) => Order())
                 );
               },
               icon: Icon(Icons.shopping_bag_outlined, color: Color.fromRGBO(173, 159, 141, 1),)
@@ -274,8 +299,7 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
-      body: 
-      Column(
+      body: Column(
         children: [
           Text("Welcome $name", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
           SizedBox(height: 30,),
@@ -301,7 +325,26 @@ class _HomePageState extends State<HomePage> {
                     title: Text(item['name'], style: TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text(item['description']),
                     trailing: TextButton(
-                      onPressed: (){}, 
+                      onPressed: (){
+                        if(item['name'] == 'Woodcrafts'){
+                          Navigator.push(
+                            context, 
+                            MaterialPageRoute(builder: (context) => Woodcraft())
+                          );
+                        }
+                        if(item['name'] == 'Jewelry'){
+                          Navigator.push(
+                            context, 
+                            MaterialPageRoute(builder: (context) => Jewelery())
+                          );
+                        }
+                        if(item['name'] == 'Clothes'){
+                          Navigator.push(
+                            context, 
+                            MaterialPageRoute(builder: (context) => Clothes())
+                          );
+                        }
+                      }, 
                       child: Icon(Icons.arrow_forward_ios_rounded)
                     ),
                   );
@@ -368,6 +411,15 @@ class _HomePageState extends State<HomePage> {
                                 Text(
                                   item['description'],
                                 ),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: ElevatedButton(
+                                    onPressed: (){
+                                      addOrder(item['id']);
+                                    }, 
+                                    child: Text("Add to Cart")
+                                  ),
+                                )
                               ],
                             ),
                           ),
@@ -380,6 +432,20 @@ class _HomePageState extends State<HomePage> {
             );
             }
           ),
+          // Padding(
+          //   padding: const EdgeInsets.all(8.0),
+          //   child: Row(
+          //     children: [
+          //       Text(
+          //         "Jewelery:", 
+          //         style: TextStyle(
+          //           fontWeight: FontWeight.bold, 
+          //           fontSize: 15
+          //         )
+          //       ),
+          //     ],
+          //   ),
+          // ),
           // FutureBuilder(
           //   future: jewelery,
           //   builder: (context, snapshot) {
@@ -400,40 +466,47 @@ class _HomePageState extends State<HomePage> {
           //       itemCount: dataList.length,
           //       itemBuilder: (context, index){
           //         final item = dataList[index];
-          //         return Row(
-          //           children: [
-          //             Card(
-          //               elevation: 5,
-          //               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          //               margin: EdgeInsets.all(10),
-          //               child: Padding(
-          //                 padding: const EdgeInsets.all(8.0),
-          //                 child: Row(
-          //                       children: [
-          //                         Column(
-          //                           children: [
-          //                             Image.asset(
-          //                               'images/handhaus_logo.png',
-          //                               width: 150,
-          //                               height: 150,
-          //                             ),
-          //                             Text(
-          //                               item['name'], style: TextStyle(fontWeight: FontWeight.bold)
-          //                             ),
-          //                             Text(item['description']),
-          //                           ],
-          //                         ),
-          //                       ],
-          //                     ),
-          //               )
+          //         return Card(
+          //           elevation: 5,
+          //           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          //           margin: EdgeInsets.all(10),
+          //           child: SizedBox(
+          //             width: 300,
+          //             height: 300,
+          //             child: Padding(
+          //               padding: const EdgeInsets.all(8.0),
+          //               child: Column(
+          //                 children: [
+          //                   Image.asset(
+          //                     'images/handhaus_logo.png',
+          //                     width: 150,
+          //                     height: 150,
+          //                   ),
+          //                   Text(
+          //                     item['name'], 
+          //                     style: TextStyle(fontWeight: FontWeight.bold),
+          //                   ),
+          //                   Text(
+          //                     item['description'],
+          //                   ),
+                            // Align(
+                            //   alignment: Alignment.centerRight,
+                            //   child: ElevatedButton(
+                            //     onPressed: (){}, 
+                            //     child: Text("Add to Cart")
+                            //   ),
+                            // )
+          //                 ],
+          //               ),
           //             ),
-          //           ],
+          //           )
           //         );
           //       },
           //     ),
           //   );
           //   }
-          // )
+          // ),
+          
         ],
       ),
       
