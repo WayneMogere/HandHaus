@@ -19,6 +19,10 @@ class _LoginState extends State<Login> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('name', name);
   }
+  Future<void> storeRole(String role) async{
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('role', role);
+  }
   Future<void> storeUserId(int id) async{
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('id', id);
@@ -31,7 +35,7 @@ class _LoginState extends State<Login> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
-  final baseUrl = Uri.parse("http://192.168.0.104:8000/api");
+  final baseUrl = Uri.parse("http://192.168.0.109:8000/api");
 
   final _formKey = GlobalKey<FormState>();
   final RegExp emailRegex = RegExp(
@@ -58,6 +62,7 @@ class _LoginState extends State<Login> {
       storeToken(data['token']);
       storeUserName(data['user'] ['name']);
       storeUserId(data['user'] ['id']);
+      storeRole(data['user']['role']['name']);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Login Successful")));
       Navigator.pushReplacement(
         context,

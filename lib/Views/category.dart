@@ -17,7 +17,7 @@ class Category extends StatefulWidget {
 }
 
 class _CategoryState extends State<Category> {
-  final baseUrl = Uri.parse("http://192.168.0.104:8000/api"); 
+  final baseUrl = Uri.parse("http://192.168.0.109:8000/api"); 
 
   Future<Map>? categories;
 

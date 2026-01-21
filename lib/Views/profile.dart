@@ -1,14 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:hand_haus_mobile/Auth/login.dart';
-import 'package:hand_haus_mobile/Views/category.dart';
 import 'package:hand_haus_mobile/Views/home_page.dart';
 import 'package:hand_haus_mobile/Views/item.dart';
 import 'package:hand_haus_mobile/Views/order.dart';
+import 'package:hand_haus_mobile/Views/orders.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -19,14 +17,20 @@ class Profile extends StatefulWidget {
 
 class _ProfileState extends State<Profile> {
 
-  final baseUrl = Uri.parse("http://192.168.0.104:8000/api");
+  final baseUrl = Uri.parse("http://192.168.0.109:8000/api");
 
   Future<Map>? userData;
-  File? _image;
 
   Future<String?> getToken() async{
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('token');
+  }
+  String role = '';
+  void loadRole() async{
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      role = prefs.getString('role')??'';
+    });
   }
 
   Future<Map> fetchData() async{
@@ -52,6 +56,7 @@ class _ProfileState extends State<Profile> {
   void initState(){
     super.initState();
     userData = fetchData();
+    loadRole();
   }
 
   Future<void> logout() async{
@@ -80,40 +85,6 @@ class _ProfileState extends State<Profile> {
     }
   }
 
-  Future pickImage() async {
-    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
-
-    if (pickedFile == null) return;
-
-    setState(() {
-      _image = File(pickedFile.path);
-    });
-  }
-
-  Future uploadImage() async {
-    if (_image == null) return;
-
-    var request = http.MultipartRequest(
-      'POST',
-      Uri.parse('$baseUrl/image'),
-    );
-
-    request.files.add(
-      await http.MultipartFile.fromPath(
-        'image',
-        _image!.path,
-      ),
-    );
-
-    var response = await request.send();
-
-    if (response.statusCode == 200) {
-      print("Upload successful");
-    } else {
-      print("Upload failed");
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -133,18 +104,32 @@ class _ProfileState extends State<Profile> {
             ),
             label: "Home"
           ),
-          BottomNavigationBarItem(
-            icon: IconButton(
-              onPressed: (){
-                Navigator.push(
-                  context, 
-                  MaterialPageRoute(builder: (context) => Order())
-                );
-              },
-              icon: Icon(Icons.shopping_bag_outlined, color: Color.fromRGBO(173, 159, 141, 1))
-            ), 
-            label: "Cart"
-          ),
+          if(role == 'Customer')
+            BottomNavigationBarItem(
+              icon: IconButton(
+                onPressed: (){
+                  Navigator.push(
+                    context, 
+                    MaterialPageRoute(builder: (context) => Order())
+                  );
+                },
+                icon: Icon(Icons.shopping_bag_outlined, color: Color.fromRGBO(173, 159, 141, 1),)
+              ), 
+              label: "Cart"
+            ),
+          if(role == 'Staff'|| role == 'Administrator')
+            BottomNavigationBarItem(
+              icon: IconButton(
+                onPressed: (){
+                  Navigator.push(
+                    context, 
+                    MaterialPageRoute(builder: (context) => Item())
+                  );
+                },
+                icon: Icon(Icons.toys, color: Color.fromRGBO(173, 159, 141, 1),)
+              ), 
+              label: "Items"
+            ),
           BottomNavigationBarItem(
             icon: IconButton(
               onPressed: (){
@@ -180,16 +165,17 @@ class _ProfileState extends State<Profile> {
                 );
               },
             ),
-            ListTile(
-              title: Text("Categories"),
-              leading: Icon(Icons.category_outlined),
-              onTap: (){
-                Navigator.push(
-                  context, 
-                  MaterialPageRoute(builder: (context) => Category())
-                );
-              },
-            ),
+            if(role == 'Staff'|| role == 'Administrator')
+              ListTile(
+                title: Text("Orders"),
+                leading: Icon(Icons.shopping_bag_outlined),
+                onTap: (){
+                  Navigator.push(
+                    context, 
+                    MaterialPageRoute(builder: (context) => Orders())
+                  );
+                },
+              ),
             ListTile(
               title: Text("Profile"),
               leading: Icon(Icons.account_circle_outlined),
@@ -228,13 +214,7 @@ class _ProfileState extends State<Profile> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _image != null
-                        ? Image.file(_image!, height: 200)
-                        : Text(" "),
-                        IconButton(
-                          onPressed: uploadImage,
-                          icon: Icon(Icons.account_circle_outlined, color: Color.fromRGBO(173, 159, 141, 1), size: 45,)
-                        ),
+                        Icon(Icons.account_circle_outlined, color: Color.fromRGBO(173, 159, 141, 1), size: 45,),
                         TextField(
                           decoration: InputDecoration(labelText: 'Name', ),
                           controller: TextEditingController(text: user['name']),

@@ -1,43 +1,37 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:hand_haus_mobile/Auth/login.dart';
+import 'package:hand_haus_mobile/Auth/register.dart';
 import 'package:hand_haus_mobile/Views/home_page.dart';
+import 'package:hand_haus_mobile/Views/item.dart';
 import 'package:hand_haus_mobile/Views/order.dart';
 import 'package:hand_haus_mobile/Views/orders.dart';
 import 'package:hand_haus_mobile/Views/profile.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-import 'dart:io';
-import 'package:image_picker/image_picker.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'package:path_provider/path_provider.dart';
 
-class Item extends StatefulWidget {
-  const Item({super.key});
+class User extends StatefulWidget {
+  const User({super.key});
 
   @override
-  State<Item> createState() => _ItemState();
+  State<User> createState() => _UserState();
 }
 
-class _ItemState extends State<Item> {
+class _UserState extends State<User> {
   final baseUrl = Uri.parse("http://192.168.0.109:8000/api"); 
 
-  Future<Map>? items;
-  String? _category;
-  File? pickedImage;
+  String? _role;
+  Future<Map>? users;
 
-  final TextEditingController imageController = TextEditingController();
   final TextEditingController nameController = TextEditingController();
-  final TextEditingController priceController = TextEditingController();
-  final TextEditingController descriptionController = TextEditingController();
-  
-  Future<String?> getUserName() async{
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final TextEditingController confrimPasswordController = TextEditingController();
+
+  Future<String?> getToken() async{
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('name');
-  }
-  Future<int?> getUserId() async{
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt('id');
+    return prefs.getString('token');
   }
   String role = '';
   void loadRole() async{
@@ -46,14 +40,9 @@ class _ItemState extends State<Item> {
       role = prefs.getString('role')??'';
     });
   }
-  Future<String?> getToken() async{
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('token');
-  }
-
 
   Future<Map> fetchData() async{
-    final fetchUrl = Uri.parse("$baseUrl/getItem");
+    final fetchUrl = Uri.parse("$baseUrl/getUser");
     final token = await getToken();
     final data = await http.get(
       fetchUrl, 
@@ -66,136 +55,78 @@ class _ItemState extends State<Item> {
 
     final responseData = jsonDecode(data.body);
     if(responseData['statusCode'] == 200){
-      print("Item fetched Successfully");
+      print("Users fetched Successfully");
     }else{
-      throw Exception("Failed to fetch Item");
+      throw Exception("Failed to fetch users");
     }
 
     return responseData;
   }
 
-  Future<void> addOrder(int item_id) async{
-    final orderUrl = Uri.parse("$baseUrl/saveOrder");
-    int? user_id = await getUserId();
-    final token = await getToken();
+  Future<void> _register() async{
+    if(confrimPasswordController.text != passwordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Passwords dont match")));
+      return;
+    }
+
+    final registerUrl = Uri.parse("$baseUrl/register");
     final response = await http.post(
-      orderUrl, 
+      registerUrl, 
       headers:{
-      "Content-Type" : "application/json",
-      "Authorization": "Bearer $token"
+      "Content-Type" : "application/json"
       }, 
       body: jsonEncode({
-        'user_id' : user_id,
-        'item_id': item_id,
-        'quantity': '1',
-        'status': 'not paid',
+        'name' : nameController.text,
+        'email': emailController.text,
+        'password': passwordController.text,
+        'password_confirmation': confrimPasswordController.text,
+        'role_id': _role,
       })
     );
     
     if(response.statusCode == 200){
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Item added to cart")));
-    }else{
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to add item to cart")));
-    }
-
-  }
-
-  Future<void> addItem() async{
-    if (pickedImage == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Please select an image")));
-      return;
-    }
-    File? originalImage = pickedImage;
-
-    final dir = await getTemporaryDirectory();
-    String targetPath =
-        "${dir.path}/compressed_${DateTime.now().millisecondsSinceEpoch}.jpg";
-
-    XFile? compressedImage = await FlutterImageCompress.compressAndGetFile(
-      originalImage!.path,
-      targetPath,
-      quality: 60,
-    );
-    final token = await getToken();
-    final request = http.MultipartRequest(
-      'POST',
-      Uri.parse("$baseUrl/saveItem"),
-    );
-
-    request.headers['Authorization'] = 'Bearer $token';
-    request.headers['Accept'] = 'application/json';
-
-
-    request.files.add(
-      await http.MultipartFile.fromPath('image', compressedImage!.path),
-    );
-    request.fields['name'] = nameController.text;
-    request.fields['price'] = priceController.text;
-    request.fields['description'] = descriptionController.text;
-    request.fields['category_id'] = _category ?? '';
-
-    final response = await request.send();
-    final responseStream = await response.stream.bytesToString();
-    if(response.statusCode == 200){
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Item added Successfully")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("User Registered Successfully")));
       refreshData();
       Navigator.of(context).pop();
     }else{
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to add Item. $responseStream")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Registration Failed ${response.body}")));
     }
 
   }
 
-  Future<void> updateItem(int item_id) async{
-    if (pickedImage == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Please select an image")));
+  Future<void> updateUser(user_id) async{
+    if(confrimPasswordController.text != passwordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Passwords dont match")));
       return;
     }
-    File? originalImage = pickedImage;
 
-    final dir = await getTemporaryDirectory();
-    String targetPath =
-        "${dir.path}/compressed_${DateTime.now().millisecondsSinceEpoch}.jpg";
-
-    XFile? compressedImage = await FlutterImageCompress.compressAndGetFile(
-      originalImage!.path,
-      targetPath,
-      quality: 60,
+    final registerUrl = Uri.parse("$baseUrl/updateUser/$user_id");
+    final response = await http.post(
+      registerUrl, 
+      headers:{
+      "Content-Type" : "application/json"
+      }, 
+      body: jsonEncode({
+        'name' : nameController.text,
+        'email': emailController.text,
+        'password': passwordController.text,
+        'password_confirmation': confrimPasswordController.text,
+        'role_id': _role,
+      })
     );
-    final token = await getToken();
-    final request = http.MultipartRequest(
-      'POST',
-      Uri.parse("$baseUrl/updateItem/$item_id"),
-    );
-
-    request.headers['Authorization'] = 'Bearer $token';
-    request.headers['Accept'] = 'application/json';
-
-
-    request.files.add(
-      await http.MultipartFile.fromPath('image', compressedImage!.path),
-    );
-    request.fields['name'] = nameController.text;
-    request.fields['price'] = priceController.text;
-    request.fields['description'] = descriptionController.text;
-    request.fields['category_id'] = _category ?? '';
-
-    final response = await request.send();
-    final responseStream = await response.stream.bytesToString();
+    
     if(response.statusCode == 200){
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Item updated Successfully")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("User updated Successfully")));
       refreshData();
       Navigator.of(context).pop();
     }else{
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to update Item. $responseStream")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Updating User Failed ${response.body}")));
     }
 
   }
 
-  Future<void> deleteItem(int item_id) async{
-    final deleteUrl = Uri.parse("$baseUrl/deleteItem/$item_id");
+  Future<void> deleteUser(int user_id) async{
+    final deleteUrl = Uri.parse("$baseUrl/deleteUser/$user_id");
     final token = await getToken();
     final response = await http.delete(
       deleteUrl, 
@@ -206,44 +137,12 @@ class _ItemState extends State<Item> {
     );
     
     if(response.statusCode == 200){
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Item deleted successfully")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("User deleted successfully")));
       refreshData();
     }else{
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to delete item")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to delete user")));
     }
 
-  }
-
-  Future<void> pickImage() async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (picked != null) {
-      setState(() {
-        pickedImage = File(picked.path);
-      });
-    }
-  }
-  ImageProvider getImageProvider(String? path) {
-    if (path == null || path.isEmpty) {
-      return AssetImage('assets/placeholder.png');
-    } else if (path.startsWith('http')) {
-      return NetworkImage(path);
-    } else {
-      return FileImage(File(path));
-    }
-  }
-
-
-  void refreshData(){
-    setState(() {
-    items = fetchData();
-    loadRole();
-    });
-  }
-
-  void initState(){
-    super.initState();
-    items = fetchData();
-    loadRole();
   }
 
   Future<void> logout() async{
@@ -273,14 +172,26 @@ class _ItemState extends State<Item> {
     
   }
 
+  void refreshData(){
+    setState(() {
+    users = fetchData();
+    loadRole();
+    });
+  }
+
+  void initState(){
+    super.initState();
+    users = fetchData();
+    loadRole();
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Color.fromRGBO(248, 243, 236, 1),
       bottomNavigationBar: BottomNavigationBar(
         selectedItemColor: Colors.brown,
         selectedFontSize: 13,
         backgroundColor: Color.fromRGBO(248, 243, 236, 1),
-        // backgroundColor: Color.fromRGBO(173, 159, 141, 1),
         items: [
           BottomNavigationBarItem(
             icon: IconButton(
@@ -290,7 +201,7 @@ class _ItemState extends State<Item> {
                   MaterialPageRoute(builder: (context) => HomePage())
                 );
               }, 
-              icon: Icon(Icons.home_outlined, color: Color.fromRGBO(173, 159, 141, 1))
+              icon: Icon(Icons.home_outlined, color: Color.fromRGBO(173, 159, 141, 1),)
             ),
             label: "Home"
           ),
@@ -316,7 +227,7 @@ class _ItemState extends State<Item> {
                     MaterialPageRoute(builder: (context) => Item())
                   );
                 },
-                icon: Icon(Icons.toys, color: Colors.brown)
+                icon: Icon(Icons.toys, color: Color.fromRGBO(173, 159, 141, 1),)
               ), 
               label: "Items"
             ),
@@ -336,6 +247,7 @@ class _ItemState extends State<Item> {
       ),
       appBar: AppBar(
         backgroundColor: Color.fromRGBO(248, 243, 236, 1),
+        title: Text("Users"),
       ),
       drawer: Drawer(
         backgroundColor: Color.fromRGBO(248, 243, 236, 1),
@@ -361,6 +273,17 @@ class _ItemState extends State<Item> {
                   Navigator.push(
                     context, 
                     MaterialPageRoute(builder: (context) => Orders())
+                  );
+                },
+              ),
+            if(role == 'Administrator')
+              ListTile(
+                title: Text("Users"),
+                leading: Icon(Icons.shopping_bag_outlined),
+                onTap: (){
+                  Navigator.push(
+                    context, 
+                    MaterialPageRoute(builder: (context) => User())
                   );
                 },
               ),
@@ -396,29 +319,8 @@ class _ItemState extends State<Item> {
                     context: context, 
                     builder: (BuildContext context){
                       return SimpleDialog(
-                        title: Text("Add Item"),
+                        title: Text("Add User"),
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Column(
-                              children: [
-                                ElevatedButton.icon(
-                                  onPressed: pickImage,
-                                  icon: Icon(Icons.image),
-                                  label: Text("Select Image"),
-                                ),
-
-                                SizedBox(height: 10),
-
-                                pickedImage == null
-                                    ? Text("No image selected")
-                                    : Image.file(
-                                        pickedImage!,
-                                        height: 120,
-                                      ),
-                              ],
-                            ),
-                          ),
                           Padding(
                             padding: const EdgeInsets.all(8.0),
                             child: TextFormField(
@@ -433,9 +335,9 @@ class _ItemState extends State<Item> {
                           Padding(
                             padding: const EdgeInsets.all(8.0),
                             child: TextFormField(
-                              controller: priceController,
+                              controller: emailController,
                               decoration: InputDecoration(
-                                label: Text("Price"),
+                                label: Text("Email"),
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                                 prefixIcon: Icon(Icons.image_outlined, color: Color.fromRGBO(173, 159, 141, 1),)
                               ),
@@ -444,39 +346,44 @@ class _ItemState extends State<Item> {
                           Padding(
                             padding: const EdgeInsets.all(8.0),
                             child: TextFormField(
-                              controller: descriptionController,
+                              controller: passwordController,
                               decoration: InputDecoration(
-                                label: Text("Description"),
+                                label: Text("Password"),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                prefixIcon: Icon(Icons.image_outlined, color: Color.fromRGBO(173, 159, 141, 1),)
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: TextFormField(
+                              controller: confrimPasswordController,
+                              decoration: InputDecoration(
+                                label: Text("Confirm Password"),
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                                 prefixIcon: Icon(Icons.image_outlined, color: Color.fromRGBO(173, 159, 141, 1),)
                               ),
                             ),
                           ),
                           RadioGroup<String>(
-                            groupValue: _category,
+                            groupValue: _role,
                             onChanged: (String? value) {
                               setState(() {
-                                _category = value;
+                                _role = value;
                               });
                             },
                             child: Column(
                               children: <Widget>[
                                 ListTile(
-                                  title: Text("Woodcrafts"),
-                                  leading: Radio<String>(
-                                    value: '1',
-                                  ),
-                                ),
-                                ListTile(
-                                  title: Text("Jewelery"),
-                                  leading: Radio<String>(
-                                    value: '2',
-                                  ),
-                                ),
-                                ListTile(
-                                  title: Text("Clothes"),
+                                  title: Text("Customer"),
                                   leading: Radio<String>(
                                     value: '3',
+                                  ),
+                                ),
+                                ListTile(
+                                  title: Text("Staff"),
+                                  leading: Radio<String>(
+                                    value: '2',
                                   ),
                                 )
                               ],
@@ -498,9 +405,9 @@ class _ItemState extends State<Item> {
                                 padding: const EdgeInsets.all(8.0),
                                 child: ElevatedButton(
                                   onPressed: (){
-                                    addItem();
+                                    _register();
                                   }, 
-                                  child: Text("Add Item")
+                                  child: Text("Add User")
                                 ),
                               ),
                             ],
@@ -510,19 +417,19 @@ class _ItemState extends State<Item> {
                     }
                   );
                 }, 
-                child: Text("Add Item")
+                child: Text("Add User")
               ),
             ),
-          FutureBuilder<Map>(future: items, builder: (context,snapshot){
+          FutureBuilder<Map>(future: users, builder: (context,snapshot){
             if(snapshot.connectionState == ConnectionState.waiting){
               return Center(child: CircularProgressIndicator(backgroundColor: Color.fromRGBO(248, 243, 236, 1)));
             }
             if(!snapshot.hasData){
               print(snapshot);
-              return Text("No Items found");
+              return Text("No User found");
             }
             final response = snapshot.data!;
-            final List dataList = response["Item"] ?? [];
+            final List dataList = response["User"] ?? [];
             if(dataList.isEmpty) return Text("No data");
 
             return Expanded(
@@ -530,7 +437,6 @@ class _ItemState extends State<Item> {
                 itemCount: dataList.length,
                 itemBuilder: (context, index){
                   final item = dataList[index];
-                  final imageUrl = "http://192.168.0.109:8000/storage/${item['image']}";
                   return Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -544,21 +450,12 @@ class _ItemState extends State<Item> {
                             padding: const EdgeInsets.all(8.0),
                             child: Column(
                               children: [
-                                Image.network(
-                                  imageUrl,
-                                  height: 120,
-                                  width: 120,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Icon(Icons.error_outline);
-                                  },
-                                ),
                                 Text(
                                   item['name'], 
                                   style: TextStyle(fontWeight: FontWeight.bold),
                                 ),
                                 Text(
-                                  item['description'],
+                                  item['email'],
                                 ),
                                 Align(
                                   alignment: Alignment.centerRight,
@@ -567,7 +464,7 @@ class _ItemState extends State<Item> {
                                       if(role == 'Customer')
                                         ElevatedButton(
                                           onPressed: (){
-                                            addOrder(item['id']);
+                                            Register();
                                           }, 
                                           child: Text("Add to Cart")
                                         ),
@@ -582,27 +479,6 @@ class _ItemState extends State<Item> {
                                                   children: [ 
                                                     Padding(
                                                       padding: const EdgeInsets.all(8.0),
-                                                      child: Column(
-                                                        children: [
-                                                          ElevatedButton.icon(
-                                                            onPressed: pickImage,
-                                                            icon: Icon(Icons.image),
-                                                            label: Text("Select Image"),
-                                                          ),
-
-                                                          SizedBox(height: 10),
-
-                                                          pickedImage == null
-                                                              ? Text("No image selected")
-                                                              : Image.file(
-                                                                  pickedImage!,
-                                                                  height: 120,
-                                                                ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                    Padding(
-                                                      padding: const EdgeInsets.all(8.0),
                                                       child: TextFormField(
                                                         controller: nameController,
                                                         decoration: InputDecoration(
@@ -615,9 +491,9 @@ class _ItemState extends State<Item> {
                                                     Padding(
                                                       padding: const EdgeInsets.all(8.0),
                                                       child: TextFormField(
-                                                        controller: priceController,
+                                                        controller: emailController,
                                                         decoration: InputDecoration(
-                                                          label: Text("Price"),
+                                                          label: Text("Email"),
                                                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                                                           prefixIcon: Icon(Icons.image_outlined, color: Color.fromRGBO(173, 159, 141, 1),)
                                                         ),
@@ -626,39 +502,44 @@ class _ItemState extends State<Item> {
                                                     Padding(
                                                       padding: const EdgeInsets.all(8.0),
                                                       child: TextFormField(
-                                                        controller: descriptionController,
+                                                        controller: passwordController,
                                                         decoration: InputDecoration(
-                                                          label: Text("Description"),
+                                                          label: Text("Password"),
+                                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                                          prefixIcon: Icon(Icons.image_outlined, color: Color.fromRGBO(173, 159, 141, 1),)
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    Padding(
+                                                      padding: const EdgeInsets.all(8.0),
+                                                      child: TextFormField(
+                                                        controller: confrimPasswordController,
+                                                        decoration: InputDecoration(
+                                                          label: Text("Confirm password"),
                                                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                                                           prefixIcon: Icon(Icons.image_outlined, color: Color.fromRGBO(173, 159, 141, 1),)
                                                         ),
                                                       ),
                                                     ),
                                                     RadioGroup<String>(
-                                                      groupValue: _category,
+                                                      groupValue: _role,
                                                       onChanged: (String? value) {
                                                         setState(() {
-                                                          _category = value;
+                                                          _role = value;
                                                         });
                                                       },
                                                       child: Column(
                                                         children: <Widget>[
                                                           ListTile(
-                                                            title: Text("Woodcrafts"),
-                                                            leading: Radio<String>(
-                                                              value: '1',
-                                                            ),
-                                                          ),
-                                                          ListTile(
-                                                            title: Text("Jewelery"),
-                                                            leading: Radio<String>(
-                                                              value: '2',
-                                                            ),
-                                                          ),
-                                                          ListTile(
-                                                            title: Text("Clothes"),
+                                                            title: Text("Customer"),
                                                             leading: Radio<String>(
                                                               value: '3',
+                                                            ),
+                                                          ),
+                                                          ListTile(
+                                                            title: Text("Staff"),
+                                                            leading: Radio<String>(
+                                                              value: '2',
                                                             ),
                                                           )
                                                         ],
@@ -680,7 +561,7 @@ class _ItemState extends State<Item> {
                                                           padding: const EdgeInsets.all(8.0),
                                                           child: ElevatedButton(
                                                             onPressed: (){
-                                                              updateItem(item['id']);
+                                                              updateUser(item['id']);
                                                             }, 
                                                             child: Text("Update Item")
                                                           ),
@@ -694,12 +575,12 @@ class _ItemState extends State<Item> {
                                           }, 
                                           child: Text("Edit")
                                         ),
-                                      if(role == 'Staff'||role == 'Administrator')
+                                      if(role == 'Administrator')
                                         ElevatedButton(
                                           onPressed: (){
-                                            deleteItem(item['id']);
+                                            deleteUser(item['id']);
                                           }, 
-                                          child: Text("Delete Item", style: TextStyle(color: Colors.red),)
+                                          child: Text("Delete User", style: TextStyle(color: Colors.red),)
                                         ),
                                     ],
                                   ),
@@ -715,7 +596,7 @@ class _ItemState extends State<Item> {
               ),
             );
           })
-        ],
+        ]
       )
     );
   }

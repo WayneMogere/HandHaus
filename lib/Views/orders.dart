@@ -4,35 +4,26 @@ import 'package:flutter/material.dart';
 import 'package:hand_haus_mobile/Auth/login.dart';
 import 'package:hand_haus_mobile/Views/home_page.dart';
 import 'package:hand_haus_mobile/Views/item.dart';
-import 'package:hand_haus_mobile/Views/orders.dart';
+import 'package:hand_haus_mobile/Views/order.dart';
 import 'package:hand_haus_mobile/Views/profile.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
-class Order extends StatefulWidget {
-  const Order({super.key});
+class Orders extends StatefulWidget {
+  const Orders({super.key});
 
   @override
-  State<Order> createState() => _OrderState();
+  State<Orders> createState() => _OrdersState();
 }
 
-class _OrderState extends State<Order> {
+class _OrdersState extends State<Orders> {
   final baseUrl = Uri.parse("http://192.168.0.109:8000/api"); 
 
   Future<Map>? orders;
-  int? user_id;
-  int total = 0;
-
-  final TextEditingController phoneController = TextEditingController();
-  final TextEditingController deliveryadressController = TextEditingController();
 
   Future<String?> getToken() async{
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('token');
-  }
-  Future<int?> getUserId() async{
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt('id');
   }
   String role = '';
   void loadRole() async{
@@ -41,10 +32,9 @@ class _OrderState extends State<Order> {
       role = prefs.getString('role')??'';
     });
   }
-  
+
   Future<Map> fetchData() async{
-    int? user_id = await getUserId();
-    final fetchUrl = Uri.parse("$baseUrl/userOrder/$user_id");
+    final fetchUrl = Uri.parse("$baseUrl/getConfirmedOrder");
     final token = await getToken();
     final data = await http.get(
       fetchUrl, 
@@ -64,82 +54,8 @@ class _OrderState extends State<Order> {
 
     return responseData;
   }
-
-  Future<void> addQuantity(order) async{
-    final itemsUrl = Uri.parse("$baseUrl/addQuantity/$order");
-    final token = await getToken();
-    final data = await http.put(
-      itemsUrl, 
-      headers:{
-      "Content-Type" : "application/json",
-      "Authorization": "Bearer $token"
-      },
-      
-    ); 
-
-    final responseData = jsonDecode(data.body);
-    if(responseData['statusCode'] == 200){
-      print("Quantity added successfully");
-      refreshData();
-    }else{
-      throw Exception("Failed to add quantity");
-    }
-
-    return responseData;
-  }
-
-  Future<void> minusQuantity(order) async{
-    final itemsUrl = Uri.parse("$baseUrl/minusQuantity/$order");
-    final token = await getToken();
-    final data = await http.put(
-      itemsUrl, 
-      headers:{
-      "Content-Type" : "application/json",
-      "Authorization": "Bearer $token"
-      },
-      
-    ); 
-
-    final responseData = jsonDecode(data.body);
-    if(responseData['statusCode'] == 200){
-      print("Quantity deducted successfully");
-      refreshData();
-    }else{
-      throw Exception("Failed to deduct quantity");
-    }
-
-    return responseData;
-  }
-
-  Future<void> confirmOrder(int item_id, int order_id)async{
-    final orderUrl = Uri.parse("$baseUrl/saveConfirmedOrder");
-    int? user_id = await getUserId();
-    final token = await getToken();
-    final response = await http.post(
-      orderUrl, 
-      headers:{
-      "Content-Type" : "application/json",
-      "Authorization": "Bearer $token"
-      }, 
-      body: jsonEncode({
-        'user_id' : user_id,
-        'item_id': item_id,
-        'quantity': '1',
-        'phone': phoneController.text,
-        'delivery_adress': deliveryadressController.text,
-      })
-    );
-    
-    if(response.statusCode == 200){
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Order Confirmed")));
-      deleteOrder(order_id);
-    }else{
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to confirm order ${response.body}")));
-    }
-  }
-
   Future<void> deleteOrder(int order_id) async{
-    final deleteUrl = Uri.parse("$baseUrl/deleteOrder/$order_id");
+    final deleteUrl = Uri.parse("$baseUrl/deleteConfirmedOrder/$order_id");
     final token = await getToken();
     final response = await http.delete(
       deleteUrl, 
@@ -150,6 +66,7 @@ class _OrderState extends State<Order> {
     );
     
     if(response.statusCode == 200){
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Item deleted successfully")));
       refreshData();
     }else{
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to delete item")));
@@ -186,8 +103,8 @@ class _OrderState extends State<Order> {
 
   void refreshData(){
     setState(() {
-      orders = fetchData();
-      loadRole();
+    orders = fetchData();
+    loadRole();
     });
   }
 
@@ -196,9 +113,11 @@ class _OrderState extends State<Order> {
     orders = fetchData();
     loadRole();
   }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Color.fromRGBO(248, 243, 236, 1),
       bottomNavigationBar: BottomNavigationBar(
         selectedItemColor: Colors.brown,
         selectedFontSize: 13,
@@ -225,7 +144,7 @@ class _OrderState extends State<Order> {
                     MaterialPageRoute(builder: (context) => Order())
                   );
                 },
-                icon: Icon(Icons.shopping_bag_outlined, color: Colors.brown)
+                icon: Icon(Icons.shopping_bag_outlined, color: Color.fromRGBO(173, 159, 141, 1),)
               ), 
               label: "Cart"
             ),
@@ -256,7 +175,10 @@ class _OrderState extends State<Order> {
           ),
         ]
       ),
-      appBar: AppBar(backgroundColor: Color.fromRGBO(248, 243, 236, 1),),
+      appBar: AppBar(
+        backgroundColor: Color.fromRGBO(248, 243, 236, 1),
+        title: Text("Orders"),
+      ),
       drawer: Drawer(
         backgroundColor: Color.fromRGBO(248, 243, 236, 1),
         child: ListView(
@@ -273,17 +195,16 @@ class _OrderState extends State<Order> {
                 );
               },
             ),
-            if(role == 'Staff'|| role == 'Administrator')
-              ListTile(
-                title: Text("Orders"),
-                leading: Icon(Icons.shopping_bag_outlined),
-                onTap: (){
-                  Navigator.push(
-                    context, 
-                    MaterialPageRoute(builder: (context) => Orders())
-                  );
-                },
-              ),
+            ListTile(
+              title: Text("Orders"),
+              leading: Icon(Icons.shopping_bag_outlined),
+              onTap: (){
+                Navigator.push(
+                  context, 
+                  MaterialPageRoute(builder: (context) => Orders())
+                );
+              },
+            ),
             ListTile(
               title: Text("Profile"),
               leading: Icon(Icons.account_circle_outlined),
@@ -325,7 +246,7 @@ class _OrderState extends State<Order> {
               );
             }
             final response = snapshot.data!;
-            final List dataList = response["orders"] ?? [];
+            final List dataList = response["Order"] ?? [];
             if(dataList.isEmpty) return Text("No data");
 
             return Expanded(
@@ -345,78 +266,58 @@ class _OrderState extends State<Order> {
                         child: Column(
                           children: [
                             Text(
+                              item['user_name'], 
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            Text(
                               item['item_name'], 
                               style: TextStyle(fontWeight: FontWeight.bold),
                             ),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                IconButton(
-                                  onPressed: (){
-                                    minusQuantity(item['order_id']);
-                                  }, 
-                                  icon: Icon(Icons.remove)
-                                ),
                                 Text("Quantity: "),
                                 Text(
-                                  item['quantity'].toString(),
+                                  item['quantity'].toString(), 
+                                  style: TextStyle(fontWeight: FontWeight.bold),
                                 ),
-                                IconButton(
-                                  onPressed: (){
-                                    addQuantity(item['order_id']);
-                                    }, 
-                                  icon: Icon(Icons.add)
-                                )
                               ],
                             ),
-                            Text('$order_price'),
-                            ElevatedButton(
-                              onPressed: (){
-                                showDialog(
-                                  context: context, 
-                                  builder: (BuildContext context){
-                                    return SimpleDialog(
-                                      title: Text("Confirm Order"),
-                                      children: [
-                                        Padding(
-                                          padding: const EdgeInsets.all(8.0),
-                                          child: TextFormField(
-                                            controller: phoneController,
-                                            decoration: InputDecoration(
-                                              label: Text("Phone"),
-                                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                                              prefixIcon: Icon(Icons.phone, color: Color.fromRGBO(173, 159, 141, 1),)
-                                            ),
-                                          ),
-                                        ),
-                                        Padding(
-                                          padding: const EdgeInsets.all(8.0),
-                                          child: TextFormField(
-                                            controller: deliveryadressController,
-                                            decoration: InputDecoration(
-                                              label: Text("Delivery Address"),
-                                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                                              prefixIcon: Icon(Icons.map_outlined, color: Color.fromRGBO(173, 159, 141, 1),)
-                                            ),
-                                          ),
-                                        ),
-                                        Padding(
-                                          padding: const EdgeInsets.all(8.0),
-                                          child: ElevatedButton(
-                                            onPressed: (){
-                                              print(item['item_id']);
-                                              confirmOrder(item['item_id'],item['order_id']);
-                                            }, 
-                                            child: Text("Confirm Order")
-                                          ),
-                                        ),
-
-                                      ],
-                                    );
-                                  }
-                                );
-                              }, 
-                              child: Text("Checkout")
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text("Price: "),
+                                Text('$order_price', style: TextStyle(fontWeight: FontWeight.bold),),
+                              ],
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text("Adress: "),
+                                Text(
+                                  item['delivery_adress'].toString(), 
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text("Number: "),
+                                Text(
+                                  item['phone'].toString(), 
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: ElevatedButton(
+                                onPressed: (){
+                                  deleteOrder(item['id']);
+                                }, 
+                                child: Text("Delivered")
+                              ),
                             ),
                           ],
                         ),

@@ -12,6 +12,7 @@ class Register extends StatefulWidget {
 }
 
 class _RegisterState extends State<Register> {
+  String? _role;
   bool isPasswordVisible = true;
 
   final TextEditingController nameController = TextEditingController();
@@ -19,7 +20,7 @@ class _RegisterState extends State<Register> {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confrimPasswordController = TextEditingController();
 
-  final baseUrl = Uri.parse("http://192.168.0.104:8000/api"); 
+  final baseUrl = Uri.parse("http://192.168.0.109:8000/api"); 
 
   final _formKey = GlobalKey<FormState>();
   final RegExp emailRegex = RegExp(
@@ -42,7 +43,8 @@ class _RegisterState extends State<Register> {
         'name' : nameController.text,
         'email': emailController.text,
         'password': passwordController.text,
-        'password_confirmation': confrimPasswordController.text
+        'password_confirmation': confrimPasswordController.text,
+        'role_id': _role,
       })
     );
     
@@ -101,6 +103,31 @@ class _RegisterState extends State<Register> {
                         label: Text("Email"),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                         prefixIcon: Icon(Icons.email, color: Color.fromRGBO(173, 159, 141, 1),)
+                      ),
+                    ),
+                    SizedBox(height: 15,),
+                    RadioGroup<String>(
+                      groupValue: _role,
+                      onChanged: (String? value) {
+                        setState(() {
+                          _role = value;
+                        });
+                      },
+                      child: Column(
+                        children: <Widget>[
+                          ListTile(
+                            title: Text("Customer"),
+                            leading: Radio<String>(
+                              value: '3',
+                            ),
+                          ),
+                          ListTile(
+                            title: Text("Staff"),
+                            leading: Radio<String>(
+                              value: '2',
+                            ),
+                          )
+                        ],
                       ),
                     ),
                     SizedBox(height: 15,),
